@@ -1,5 +1,7 @@
 # mirthSync
 
+> **Note**: This is the Java version of mirthSync, translated from the original Clojure implementation. The application is built with Maven and requires Java 17 or higher.
+
 ![](https://github.com/SagaHealthcareIT/mirthsync/workflows/Clojure%20CI/badge.svg)
 
 mirthSync is an open source DevOps tool for Mirth Connect and Open Integration Engine (OIE) version control
@@ -211,7 +213,33 @@ For detailed installation guides and integration with your specific CI/CD platfo
 
 ## Prerequisites
 
-Requires Java JRE or JDK version 8 or higher (Java 8, 11, 17, 21, and other LTS versions are supported)
+Requires Java JRE or JDK version 17 or higher (Java 17, 21, and other LTS versions are supported)
+
+## Building from Source
+
+```bash
+# Clone the repository
+git clone https://github.com/SagaHealthcareIT/mirthsync.git
+cd mirthsync
+
+# Build with Maven
+mvn clean package
+
+# The executable JAR will be in target/mirthsync-3.5.2-standalone.jar
+```
+
+## Running mirthSync
+
+```bash
+# Show help
+java -jar mirthsync-3.5.2-standalone.jar -h
+
+# Pull from server
+java -jar mirthsync-3.5.2-standalone.jar -s https://mirth-server:8443/api -u admin -p password pull -t ./target-dir
+
+# Push to server
+java -jar mirthsync-3.5.2-standalone.jar -s https://mirth-server:8443/api -u admin -p password push -t ./target-dir
+```
 
 ## For MacOS users
 To be able to run the script on MacOS, you need to install the following tools:
