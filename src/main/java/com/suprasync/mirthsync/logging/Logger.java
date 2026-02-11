@@ -27,6 +27,10 @@ public class Logger {
     public static void info(String format, Object... args) {
         logger.info(format, args);
     }
+    
+    public static void infof(String format, Object... args) {
+        logger.info(format, args);
+    }
 
     public static void debug(String message) {
         if (verbosityLevel >= 1) {
@@ -57,6 +61,10 @@ public class Logger {
     }
 
     public static void warn(String format, Object... args) {
+        logger.warn(format, args);
+    }
+    
+    public static void warnf(String format, Object... args) {
         logger.warn(format, args);
     }
 

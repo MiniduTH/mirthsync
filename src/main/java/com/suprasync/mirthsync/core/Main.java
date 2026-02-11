@@ -43,10 +43,14 @@ public class Main {
             Logger.setVerbosity(config.getVerbosity());
             
             // Run the appropriate action
-            run(config);
-            
-            Logger.info("Finished!");
-            return 0;
+            try {
+                run(config);
+                Logger.info("Finished!");
+                return 0;
+            } catch (Exception e) {
+                Logger.error("Error during operation: " + e.getMessage(), e);
+                return 1;
+            }
             
         } catch (Exception e) {
             Logger.error("Error executing mirthSync", e);
@@ -60,24 +64,66 @@ public class Main {
      * 
      * @param config The application configuration
      */
-    private static void run(AppConfig config) {
+    private static void run(AppConfig config) throws Exception {
         String action = config.getAction();
         
         if ("git".equals(action)) {
             // Git operations don't require server authentication
-            Logger.info("Executing git " + config.getArguments().get(0));
-            // TODO: GitOperations.execute(config);
-            Logger.warn("Git operations not yet implemented in Java version");
-        } else if ("pull".equals(action)) {
-            // Pull operation
-            Logger.info("Authenticating to server at " + config.getServer() + " as " + config.getUsername());
-            // TODO: Implement pull operation
-            Logger.warn("Pull operation not yet implemented in Java version");
-        } else if ("push".equals(action)) {
-            // Push operation
-            Logger.info("Authenticating to server at " + config.getServer() + " as " + config.getUsername());
-            // TODO: Implement push operation
-            Logger.warn("Push operation not yet implemented in Java version");
+            if (config.getArguments().isEmpty()) {
+                throw new IllegalArgumentException("Git subcommand required");
+            }
+            
+            String subcommand = config.getArguments().get(0);
+            String[] args = config.getArguments().subList(1, config.getArguments().size())
+                .toArray(new String[0]);
+            
+            com.suprasync.mirthsync.git.GitOperations.execute(config, subcommand, args);
+            
+        } else if ("pull".equals(action) || "push".equals(action)) {
+            // These operations require server authentication
+            com.suprasync.mirthsync.http.HttpClientWrapper client = 
+                new com.suprasync.mirthsync.http.HttpClientWrapper(config);
+            
+            client.authenticate();
+            
+            // Get list of APIs to process
+            var apis = com.suprasync.mirthsync.apis.ApiDefinitions.getApis(config);
+            
+            // Preprocess APIs
+            config = com.suprasync.mirthsync.apis.ApiDefinitions.iterateApis(
+                config, apis, com.suprasync.mirthsync.apis.ApiDefinitions::preprocessApi);
+            
+            if ("pull".equals(action)) {
+                // Capture local files before pull for orphan detection
+                config = com.suprasync.mirthsync.apis.ApiDefinitions.iterateApis(
+                    config, apis, com.suprasync.mirthsync.actions.Actions::capturePrePullLocalFiles);
+                
+                // Execute pull
+                config = com.suprasync.mirthsync.apis.ApiDefinitions.iterateApis(
+                    config, apis, com.suprasync.mirthsync.actions.Actions::download);
+                
+                // Clean up orphaned files
+                com.suprasync.mirthsync.actions.Actions.cleanupOrphanedFiles(config);
+                
+            } else { // push
+                // Initialize bulk deploy if needed
+                if (config.isDeployAll()) {
+                    config.setBulkDeployChannels(new java.util.concurrent.atomic.AtomicReference<>(new java.util.ArrayList<>()));
+                }
+                
+                // Execute push
+                config = com.suprasync.mirthsync.apis.ApiDefinitions.iterateApis(
+                    config, apis, com.suprasync.mirthsync.actions.Actions::upload);
+                
+                // Deploy all channels if configured
+                if (config.isDeployAll()) {
+                    com.suprasync.mirthsync.apis.ApiDefinitions.deployAllChannels(config);
+                }
+            }
+            
+            // Auto-commit if configured
+            com.suprasync.mirthsync.git.GitOperations.autoCommitAfterOperation(config);
+            
         } else {
             throw new IllegalArgumentException("Unknown action: " + action);
         }
